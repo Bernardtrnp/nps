@@ -1,0 +1,113 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\RiskValue;
+use App\Models\RiskType;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+
+class StatisticalAnalysisFullController extends Controller
+{
+    /**
+     * Main Statistical Analysis Center page (/risk/visual)
+     */
+    public function index(Request $request)
+    {
+        $riskTypes = RiskType::orderBy('name')->get();
+
+        $values = RiskValue::with([
+                'variable.risk.type',
+                'variable.risk.unit',
+                'variable.risk.entitas'
+            ])
+            ->orderBy('year')
+            ->orderByRaw("FIELD(month,
+                'January','February','March','April','May','June',
+                'July','August','September','October','November','December')")
+            ->get()
+            ->map(function ($v) {
+                return [
+                    'value' => $v->value,
+                    'year' => $v->year,
+                    'month' => $v->month,
+                    'quarter' => $v->quarter,
+
+                    // Variable
+                    'risk_variable_id' => $v->risk_variable_id,
+                    'variable_name' => $v->variable->variable_name,
+                    'unit_value' => $v->variable->unit_value,
+
+                    // Risk
+                    'risk_id' => $v->variable->risk->id,
+                    'risk_name' => $v->variable->risk->name,
+                    'category' => $v->variable->risk->category,
+                    'subcategory' => $v->variable->risk->subcategory,
+
+                    // Risk Type
+                    'risk_type_id' => $v->variable->risk->risk_type_id,
+                    'risk_type_name' => $v->variable->risk->type->name,
+
+                    // Unit / Entitas
+                    'unit_name' => $v->variable->risk->unit->name ?? null,
+                    'entitas_name' => $v->variable->risk->entitas->name ?? null,
+                ];
+            });
+
+        return view('risk.analysis', [
+            'riskTypes' => $riskTypes,
+            'rawValues' => $values
+        ]);
+}
+
+    /**
+     * Monte Carlo API endpoint
+     */
+    public function monteCarlo(Request $request)
+    {
+        try {
+            $dist = $request->distribution;
+            $params = $request->params;
+            $n = $request->samples ?? 5000;
+
+            $samples = [];
+
+            for ($i = 0; $i < $n; $i++) {
+                switch ($dist) {
+                    case 'poisson':
+                        $lambda = $params['lambda'] ?? 1;
+                        $samples[] = random_int(0, max(1, (int)$lambda));
+                        break;
+
+                    case 'normal':
+                        $mu = $params['mu'] ?? 0;
+                        $sigma = $params['sigma'] ?? 1;
+                        $samples[] = $mu + $sigma * $this->gauss();
+                        break;
+
+                    case 'lognormal':
+                        $mu = $params['mu'] ?? 0;
+                        $sigma = $params['sigma'] ?? 1;
+                        $samples[] = exp($mu + $sigma * $this->gauss());
+                        break;
+
+                    default:
+                        $samples[] = 0;
+                }
+            }
+
+            return response()->json(['samples' => $samples]);
+        } catch (\Exception $e) {
+            Log::error('Monte Carlo error: '.$e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    private function gauss()
+    {
+        $u = 0; $v = 0;
+        while ($u === 0) $u = mt_rand() / mt_getrandmax();
+        while ($v === 0) $v = mt_rand() / mt_getrandmax();
+        return sqrt(-2 * log($u)) * cos(2 * pi() * $v);
+    }
+}

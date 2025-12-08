@@ -1,0 +1,207 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('risk_types', function (Blueprint $table) {
+            $table->id();
+            $table->string('name'); // HR, SLA, HSE, Finance, dll.
+            $table->text('description')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('risk_types');
+    }
+};
+
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('units', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');     // PLTU Bangka, PLTA Asahan, dll
+            $table->string('type')->nullable();  // PLTU, PLTA, PLTG, PLTD
+            $table->string('region')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('units');
+    }
+};
+
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('entitas', function (Blueprint $table) {
+            $table->id();
+            $table->string('name'); // Corporate, Unit, Subholding, NPS, MKP, dll.
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('entitas');
+    }
+};
+
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('risks', function (Blueprint $table) {
+            $table->id();
+
+            $table->foreignId('risk_type_id')->constrained('risk_types');
+
+            // boleh null karena tidak semua risiko terkait unit atau entitas
+            $table->foreignId('unit_id')->nullable()->constrained('units');
+            $table->foreignId('entitas_id')->nullable()->constrained('entitas');
+
+            $table->string('name'); // Risk_Name
+            $table->string('category')->nullable(); 
+            $table->string('subcategory')->nullable();
+
+            $table->text('description')->nullable();
+            $table->string('owner')->nullable();
+            $table->string('source')->nullable();
+
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('risks');
+    }
+};
+
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('risk_variables', function (Blueprint $table) {
+            $table->id();
+
+            $table->foreignId('risk_id')->constrained('risks');
+
+            $table->string('variable_name'); // Total Cases, SLA_Shortfall, GAP, dll
+            $table->string('unit_value')->nullable(); // %, kejadian, hari
+            $table->string('method')->nullable(); 
+            $table->text('notes')->nullable();
+
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('risk_variables');
+    }
+};
+
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('risk_values', function (Blueprint $table) {
+            $table->id();
+
+            $table->foreignId('risk_variable_id')->constrained('risk_variables');
+
+            $table->integer('year');
+            $table->string('quarter')->nullable();
+            $table->string('month')->nullable();
+
+            $table->double('value'); // Nilai aktual: SLA%, shortfall, total cases, cashflow, dll.
+
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('risk_values');
+    }
+};
+
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('sessions', function (Blueprint $table) {
+            $table->string('id')->primary();
+            $table->foreignId('user_id')->nullable()->index();
+            $table->string('ip_address', 45)->nullable();
+            $table->text('user_agent')->nullable();
+            $table->longText('payload');
+            $table->integer('last_activity')->index();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('sessions');
+    }
+};
